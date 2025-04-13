@@ -173,6 +173,9 @@ class World:
         for frame in frames + cameras:
             self._add_frame_to_plot(fig, frame)
         
+        # Ajouter les connexions parent-enfant entre repères
+        self._add_parent_child_connections(fig)
+        
         # Ajouter les connexions points-repères
         self._add_point_frame_connections(fig)
         
@@ -480,4 +483,55 @@ class World:
             row=row, col=col_idx
         )
         
+        return fig
+    
+    def _add_parent_child_connections(self, fig, row=1, col=1, line_color='black', line_width=2):
+        """Ajoute des flèches entre les repères parents et enfants"""
+        frames = self.get_frames()
+        cameras = self.get_cameras()
+        all_objects = frames + cameras
+        
+        # Parcourir tous les repères et caméras
+        for child in all_objects:
+            parent_origin = None
+            child_origin = child.origin
+            
+            # Vérifier si ce repère a un parent explicite
+            if child.parent is not None:
+                parent_origin = child.parent.origin
+            else:
+                # Si pas de parent explicite, considérer l'origine du monde comme parent
+                parent_origin = np.array([0, 0, 0])
+            
+            # Calculer le vecteur de direction et sa longueur
+            direction = child_origin - parent_origin
+            distance = np.linalg.norm(direction)
+            unit_vector = direction / distance if distance > 0 else np.array([0, 0, 1])
+            
+            # Point pour la tête de flèche (à 90% de la distance)
+            arrow_base = parent_origin + 0.9 * direction
+            arrow_tip = child_origin
+            
+            # Ajouter une ligne pour le corps de la flèche
+            fig.add_trace(go.Scatter3d(
+                x=[parent_origin[0], arrow_base[0]],
+                y=[parent_origin[1], arrow_base[1]],
+                z=[parent_origin[2], arrow_base[2]],
+                mode='lines',
+                line=dict(color=line_color, width=line_width, dash='dash'),
+                name="Hiérarchie",
+                showlegend=False
+            ), row=row, col=col)
+            
+            # Ajouter le cône de la flèche (en utilisant une ligne plus épaisse)
+            fig.add_trace(go.Scatter3d(
+                x=[arrow_base[0], arrow_tip[0]],
+                y=[arrow_base[1], arrow_tip[1]],
+                z=[arrow_base[2], arrow_tip[2]],
+                mode='lines',
+                line=dict(color=line_color, width=line_width*2),  # Plus épais pour simuler la tête de flèche
+                name="Tête flèche",
+                showlegend=False
+            ), row=row, col=col)
+                
         return fig
